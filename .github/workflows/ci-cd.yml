@@ -28,14 +28,13 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Install pytest-xvfb
-        run: uv pip install pytest-xvfb
-
       - name: Run black (check only)
         run: uv run black --check src/ tests/
 
-      - name: Run tests with pytest-xvfb
-        run: uv run pytest --xvfb tests/
+      - name: Run tests with xvfb
+        run: |
+          sudo apt-get install -y xvfb
+          xvfb-run uv run pytest tests/ --cov=src --cov-report=term-missing
 
   build-and-release:
     needs: test
