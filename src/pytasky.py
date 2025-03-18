@@ -3,20 +3,28 @@ from tkinter import ttk, messagebox, filedialog
 import time
 from datetime import datetime, timedelta
 import os
+import sys
 import json
 import csv
-from sqlalchemy import and_
-from models import Task, get_session  # Import from models.py
+from models import Task, get_session
+
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and PyInstaller"""
+    if hasattr(sys, "_MEIPASS"):
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        return os.path.join(sys._MEIPASS, os.path.basename(relative_path))
+    return os.path.join(os.path.dirname(__file__), relative_path)
 
 
 class PyTaskyApp:
     def __init__(self, root):
         self.root = root
         self.root.title("PyTasky")
-        self.root.geometry("600x400")
+        self.root.geometry("1200x800")
 
         # Set app icon
-        icon_path = os.path.join(os.path.dirname(__file__), "..", "icon.png")
+        icon_path = resource_path("../icon.png")
         if os.path.exists(icon_path):
             try:
                 icon = tk.PhotoImage(file=icon_path)
@@ -25,7 +33,8 @@ class PyTaskyApp:
                 print(f"Error setting icon: {e}")
 
         # Load version
-        with open(os.path.join(os.path.dirname(__file__), "version.txt"), "r") as f:
+        version_path = resource_path("version.txt")
+        with open(version_path, "r") as f:
             self.version = f.read().strip()
 
         # Timer variables
@@ -80,7 +89,6 @@ class PyTaskyApp:
             side="left"
         )
 
-        # Add Task Frame
         input_frame = ttk.LabelFrame(timer_frame, text="Add Task", padding="10")
         input_frame.pack(fill="x", pady=5)
 
@@ -116,7 +124,6 @@ class PyTaskyApp:
             row=4, column=1, pady=5, sticky="e"
         )
 
-        # Tasks Frame
         tasks_frame = ttk.LabelFrame(
             timer_frame, text="Tasks (Double-click to edit)", padding="10"
         )
@@ -139,7 +146,6 @@ class PyTaskyApp:
         report_frame = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(report_frame, text="Reports")
 
-        # Filter Frame (Reports Frame)
         filter_frame = ttk.LabelFrame(report_frame, text="Report Filters", padding="10")
         filter_frame.pack(fill="x", pady=5)
 
@@ -201,7 +207,7 @@ class PyTaskyApp:
         about_frame = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(about_frame, text="About")
 
-        logo_path = os.path.join(os.path.dirname(__file__), "..", "logo.png")
+        logo_path = resource_path("../logo.png")
         if os.path.exists(logo_path):
             logo = tk.PhotoImage(file=logo_path)
             self.root.update()
@@ -309,30 +315,25 @@ https://github.com/elephantatech/pyTasky
             session.close()
             return
 
-        # Create popup window
         edit_window = tk.Toplevel(self.root)
         edit_window.title(f"Edit Task {task_id}")
         edit_window.geometry("300x350")
 
-        # Title
         ttk.Label(edit_window, text="Title:").pack(pady=5)
         title_entry = tk.Entry(edit_window)
         title_entry.insert(0, task.title)
         title_entry.pack(fill="x", padx=10)
 
-        # Notes
         ttk.Label(edit_window, text="Notes:").pack(pady=5)
         notes_entry = tk.Entry(edit_window)
         notes_entry.insert(0, task.notes or "")
         notes_entry.pack(fill="x", padx=10)
 
-        # Tag
         ttk.Label(edit_window, text="Tag:").pack(pady=5)
         tag_entry = tk.Entry(edit_window)
         tag_entry.insert(0, task.tag or "")
         tag_entry.pack(fill="x", padx=10)
 
-        # Status
         ttk.Label(edit_window, text="Status:").pack(pady=5)
         status_combo = ttk.Combobox(
             edit_window,
@@ -349,7 +350,6 @@ https://github.com/elephantatech/pyTasky
         status_combo.set(task.status)
         status_combo.pack(fill="x", padx=10)
 
-        # Created At (read-only)
         ttk.Label(edit_window, text="Created At:").pack(pady=5)
         created_at_label = ttk.Label(
             edit_window,
@@ -361,7 +361,6 @@ https://github.com/elephantatech/pyTasky
         )
         created_at_label.pack()
 
-        # Last Updated (read-only)
         ttk.Label(edit_window, text="Last Updated:").pack(pady=5)
         last_updated_label = ttk.Label(
             edit_window,
@@ -373,7 +372,6 @@ https://github.com/elephantatech/pyTasky
         )
         last_updated_label.pack()
 
-        # Save button
         def save_changes():
             new_title = title_entry.get().strip()
             if not new_title:
@@ -410,6 +408,7 @@ https://github.com/elephantatech/pyTasky
             task_index = selected[0]
             task_text = self.task_list.get(task_index)
             task_id = int(task_text.split(".")[0])
+
             session = get_session()
             task = session.query(Task).filter(Task.id == task_id).first()
             if task:
@@ -483,22 +482,18 @@ https://github.com/elephantatech/pyTasky
 
         session = get_session()
         if not selected_statuses:
-            # If no statuses selected, include all tasks within date range
             tasks = (
                 session.query(Task)
-                .filter(and_(Task.created_at >= start_dt, Task.created_at <= end_dt))
+                .filter(Task.created_at >= start_dt, Task.created_at <= end_dt)
                 .all()
             )
         else:
-            # Filter by selected statuses and date range
             tasks = (
                 session.query(Task)
                 .filter(
-                    and_(
-                        Task.created_at >= start_dt,
-                        Task.created_at <= end_dt,
-                        Task.status.in_(selected_statuses),
-                    )
+                    Task.created_at >= start_dt,
+                    Task.created_at <= end_dt,
+                    Task.status.in_(selected_statuses),
                 )
                 .all()
             )
@@ -508,7 +503,6 @@ https://github.com/elephantatech/pyTasky
             session.close()
             return
 
-        # Convert tasks to a list of tuples for CSV compatibility
         task_data = [
             (
                 t.id,
@@ -587,9 +581,6 @@ https://github.com/elephantatech/pyTasky
 
         messagebox.showinfo("Report", f"Report saved as {filename}")
         session.close()
-
-    def __del__(self):
-        pass  # SQLAlchemy session is closed in each method
 
 
 def main():
