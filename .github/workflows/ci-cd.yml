@@ -53,14 +53,12 @@ jobs:
         shell: pwsh
         run: |
           irm https://astral.sh/uv/install.ps1 | iex
-          echo "$env:HOME\.local\bin" >> $env:GITHUB_PATH
-          echo "$env:HOME\.local\bin" >> $env:GITHUB_ENV
+          echo "C:\Users\runneradmin\.local\bin" | Out-File -Append -Encoding UTF8 "$env:GITHUB_PATH"
+          echo "UV_HOME=C:\Users\runneradmin\.local\bin" | Out-File -Append -Encoding UTF8 "$env:GITHUB_ENV"
 
       - name: Install dependencies
-        run: |
-          $uv_path = "$env:HOME\.local\bin\uv.exe"
-          Write-Host "uv executable path: $uv_path"
-          & $uv_path sync
+        shell: pwsh
+        run: uv sync
 
       - name: Build executable with PyInstaller
         run: uv run pyinstaller --onefile --name pytasky --add-data "src/version.txt;." --add-data "icon.png;." --add-data "logo.png;." --noconsole src/pytasky.py
