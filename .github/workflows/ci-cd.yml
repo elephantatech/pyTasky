@@ -1,75 +1,38 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-  release:
-    types: [ published ]
+    branches: [main]
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install Poetry
-      run: curl -sSL https://install.python-poetry.org | python3 -
-    - name: Install dependencies
-      run: poetry install
-    - name: Run tests
-      run: poetry run pytest tests/
 
-  build:
-    needs: test
-    if: github.event_name == 'release' && github.event.action == 'published'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install Poetry
-      run: curl -sSL https://install.python-poetry.org | python3 -
-    - name: Install dependencies
-      run: poetry install
-    - name: Build executable
-      run: poetry run pyinstaller --onefile --name PyTasky --windowed src/pytasky.py
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: PyTasky-${{ matrix.os }}
-        path: dist/PyTasky*
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  release:
-    needs: build
-    if: github.event_name == 'release' && github.event.action == 'published'
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: PyTasky-ubuntu-latest
-        path: dist/linux
-    - uses: actions/download-artifact@v3
-      with:
-        name: PyTasky-windows-latest
-        path: dist/windows
-    - uses: actions/download-artifact@v3
-      with:
-        name: PyTasky-macos-latest
-        path: dist/mac
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          dist/linux/PyTasky
-          dist/windows/PyTasky.exe
-          dist/mac/PyTasky
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run black (check only)
+        run: uv run black --check src/ tests/
+
+      - name: Run pylint
+        run: uv run pylint src/ tests/
+
+      - name: Run tests with coverage
+        run: uv run pytest tests/ --cov=src --cov-report=term-missing
