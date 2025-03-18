@@ -55,14 +55,8 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           echo "$HOME/.local/bin" >> $GITHUB_ENV
 
-      - name: Add uv to PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-
       - name: Install dependencies
-        run: |
-          echo "C:\Users\runneradmin\.local\bin" >> $GITHUB_PATH
-          echo "C:\Users\runneradmin\.local\bin" >> $GITHUB_ENV
-          uv sync
+        run: uv sync
 
       - name: Build executable with PyInstaller
         run: uv run pyinstaller --onefile --name pytasky --add-data "src/version.txt;." --add-data "icon.png;." --add-data "logo.png;." --noconsole src/pytasky.py
