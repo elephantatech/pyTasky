@@ -57,7 +57,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          $env:PATH = "$env:HOME\.local\bin;$env:PATH"
+          $uv_path = "$env:HOME\.local\bin"
+          if (-not $env:PATH.Contains($uv_path)) {
+            $env:PATH = "$uv_path;$env:PATH"
+            Write-Host "Updated PATH: $env:PATH"
+          } else {
+            Write-Host "PATH already contains: $uv_path"
+          }
           uv sync
 
       - name: Build executable with PyInstaller
