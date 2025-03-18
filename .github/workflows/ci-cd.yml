@@ -1,0 +1,75 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    - name: Install Poetry
+      run: curl -sSL https://install.python-poetry.org | python3 -
+    - name: Install dependencies
+      run: poetry install
+    - name: Run tests
+      run: poetry run pytest tests/
+
+  build:
+    needs: test
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    - name: Install Poetry
+      run: curl -sSL https://install.python-poetry.org | python3 -
+    - name: Install dependencies
+      run: poetry install
+    - name: Build executable
+      run: poetry run pyinstaller --onefile --name PyTasky --windowed src/pytasky.py
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: PyTasky-${{ matrix.os }}
+        path: dist/PyTasky*
+
+  release:
+    needs: build
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: PyTasky-ubuntu-latest
+        path: dist/linux
+    - uses: actions/download-artifact@v3
+      with:
+        name: PyTasky-windows-latest
+        path: dist/windows
+    - uses: actions/download-artifact@v3
+      with:
+        name: PyTasky-macos-latest
+        path: dist/mac
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/linux/PyTasky
+          dist/windows/PyTasky.exe
+          dist/mac/PyTasky

@@ -1,0 +1,11 @@
+{
+    "python.testing.pytestArgs": [
+        "tests",
+        "--cov=src",
+        "--cov-report=term-missing"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.cwd": "${workspaceFolder}",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe"
+}

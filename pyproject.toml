@@ -1,0 +1,25 @@
+[project]
+name = "pytasky"
+version = "0.1.0"
+description = "A Pomodoro-based time management application to track and organize tasks with SQLite persistence."
+readme = "README.md"
+requires-python = ">=3.11.3"
+dependencies = [
+    "black>=25.1.0",
+    "coverage>=7.7.0",
+    "pre-commit>=4.1.0",
+    "pyinstaller>=6.12.0",
+    "pylint>=3.3.5",
+    "pytest-cov>=6.0.0",
+    "pytest>=8.3.5",
+    "sqlalchemy>=2.0.39",
+    "ttkthemes>=3.2.2",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src"
+]
+testpaths = [
+    "tests"
+]
