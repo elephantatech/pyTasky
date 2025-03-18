@@ -22,7 +22,8 @@ jobs:
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "UV_HOME=$HOME/.local/bin" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: uv sync
