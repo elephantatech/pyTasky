@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -36,10 +35,55 @@ jobs:
           sudo apt-get install -y xvfb
           xvfb-run uv run pytest tests/ --cov=src --cov-report=term-missing
 
-  build-and-release:
+  auto-tag:
     needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag_created: ${{ steps.check_tag.outputs.new_tag_created }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for tags
+
+      - name: Set up Git user
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Get latest tag
+        id: latest_tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Read current version
+        id: current_version
+        run: echo "current_version=$(cat src/version.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Check and create tag
+        id: check_tag
+        run: |
+          latest_tag="${{ steps.latest_tag.outputs.latest_tag }}"
+          current_version="${{ steps.current_version.outputs.current_version }}"
+          echo "Latest tag: $latest_tag"
+          echo "Current version: $current_version"
+          new_tag_created="false"
+
+          if [[ "$latest_tag" != "v$current_version" ]]; then
+            echo "Version has changed. Creating new tag: v$current_version"
+            git tag "v$current_version"
+            git push origin "v$current_version"
+            new_tag_created="true"
+          else
+            echo "Version has not changed since the last tag."
+          fi
+          echo "new_tag_created=$new_tag_created" >> "$GITHUB_OUTPUT"
+
+  build-and-release:
+    needs: auto-tag
     runs-on: windows-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ needs.auto-tag.outputs.new_tag_created == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,16 +93,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install uv (PowerShell)
-        shell: pwsh
+      - name: Install uv
         run: |
-          irm https://astral.sh/uv/install.ps1 | iex
-          echo "C:\Users\runneradmin\.local\bin" | Out-File -Append -Encoding UTF8 "$env:GITHUB_PATH"
-          echo "UV_HOME=C:\Users\runneradmin\.local\bin" | Out-File -Append -Encoding UTF8 "$env:GITHUB_ENV"
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/bin" >> $GITHUB_ENV
 
       - name: Install dependencies
-        shell: pwsh
-        run: uv sync
+        run: |
+          $uv_path = "C:\Users\runneradmin\.local\bin\uv.exe"
+          Write-Host "uv executable path: $uv_path"
+          & $uv_path sync
 
       - name: Build executable with PyInstaller
         run: uv run pyinstaller --onefile --name pytasky --add-data "src/version.txt;." --add-data "icon.png;." --add-data "logo.png;." --noconsole src/pytasky.py
@@ -86,6 +131,59 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: dist/pytasky.exe
           asset_name: pytasky-v${{ steps.read_version.outputs.version }}-windows.exe
+          asset_content_type: application/octet-stream
+
+    permissions:
+      contents: write
+
+  build-and-release-linux:
+    needs: auto-tag
+    runs-on: ubuntu-latest
+    if: ${{ needs.auto-tag.outputs.new_tag_created == 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/bin" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build executable with PyInstaller
+        run: uv run pyinstaller --onefile --name pytasky --add-data "src/version.txt:." --add-data "icon.png:." --add-data "logo.png:." src/pytasky.py
+
+      - name: Read version from file
+        id: read_version
+        run: echo "::set-output name=version::$(cat src/version.txt)"
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.read_version.outputs.version }}
+          release_name: Release v${{ steps.read_version.outputs.version }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/pytasky
+          asset_name: pytasky-v${{ steps.read_version.outputs.version }}-linux
           asset_content_type: application/octet-stream
 
     permissions:
