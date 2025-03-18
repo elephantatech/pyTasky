@@ -79,6 +79,8 @@ jobs:
             echo "Version has not changed since the last tag."
           fi
           echo "new_tag_created=$new_tag_created" >> "$GITHUB_OUTPUT"
+    permissions:
+      contents: write
 
   build-and-release:
     needs: auto-tag
