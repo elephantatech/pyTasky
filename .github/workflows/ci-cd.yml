@@ -56,7 +56,9 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: uv sync
+        run: |
+          $env:PATH = "$env:HOME\.local\bin;$env:PATH"
+          uv sync
 
       - name: Build executable with PyInstaller
         run: uv run pyinstaller --onefile --name pytasky --add-data "src/version.txt;." --add-data "icon.png;." --add-data "logo.png;." --noconsole src/pytasky.py
