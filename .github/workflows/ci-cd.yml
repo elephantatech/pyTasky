@@ -57,8 +57,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          $env:PATH = "$env:HOME\.local\bin;$env:PATH"
-          uv sync
+          $uv_path = "$env:HOME\.local\bin\uv.exe"
+          Write-Host "uv executable path: $uv_path"
+          & $uv_path sync
 
       - name: Build executable with PyInstaller
         run: uv run pyinstaller --onefile --name pytasky --add-data "src/version.txt;." --add-data "icon.png;." --add-data "logo.png;." --noconsole src/pytasky.py
